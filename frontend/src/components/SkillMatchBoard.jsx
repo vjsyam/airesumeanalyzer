@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
-import { Check, X, AlertCircle, Search, Filter } from 'lucide-react';
+import { Check, X, AlertCircle, Search, Filter, Copy } from 'lucide-react';
 
 export default function SkillMatchBoard({ skills, matchAnalysis }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedSection, setCopiedSection] = useState(null);
+
+  const handleCopyList = (items, sectionName) => {
+    if (!items || items.length === 0) return;
+    const text = items.join(', ');
+    navigator.clipboard.writeText(text);
+    setCopiedSection(sectionName);
+    setTimeout(() => setCopiedSection(null), 1800);
+  };
 
   if (!skills && !matchAnalysis) return null;
 
@@ -116,8 +125,27 @@ export default function SkillMatchBoard({ skills, matchAnalysis }) {
         {/* Missing Skills from JD */}
         {(activeFilter === 'all' || activeFilter === 'missing') && filteredMissing.length > 0 && (
           <div>
-            <div className="mono" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-danger)', marginBottom: '0.65rem' }}>
-              Missing from Resume ({filteredMissing.length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <div className="mono" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-danger)' }}>
+                Missing from Resume ({filteredMissing.length})
+              </div>
+              <button
+                className="btn-ghost"
+                style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem' }}
+                onClick={() => handleCopyList(filteredMissing, 'missing')}
+              >
+                {copiedSection === 'missing' ? (
+                  <>
+                    <Check size={11} color="var(--accent-primary)" />
+                    <span style={{ color: 'var(--accent-primary)' }}>Copied List</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={11} />
+                    <span>Copy Missing (CSV)</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="chips-grid">
               {filteredMissing.map((skill, idx) => (
@@ -133,8 +161,27 @@ export default function SkillMatchBoard({ skills, matchAnalysis }) {
         {/* Critical Domain Keyword Gaps */}
         {(activeFilter === 'all' || activeFilter === 'gaps') && filteredGaps.length > 0 && (
           <div>
-            <div className="mono" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-warning)', marginBottom: '0.65rem' }}>
-              Target Domain Concepts & Keyword Gaps ({filteredGaps.length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <div className="mono" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-warning)' }}>
+                Target Domain Concepts & Keyword Gaps ({filteredGaps.length})
+              </div>
+              <button
+                className="btn-ghost"
+                style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem' }}
+                onClick={() => handleCopyList(filteredGaps, 'gaps')}
+              >
+                {copiedSection === 'gaps' ? (
+                  <>
+                    <Check size={11} color="var(--accent-primary)" />
+                    <span style={{ color: 'var(--accent-primary)' }}>Copied List</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={11} />
+                    <span>Copy Gaps (CSV)</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="chips-grid">
               {filteredGaps.map((gap, idx) => (

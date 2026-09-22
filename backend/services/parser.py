@@ -332,9 +332,26 @@ def parse_resume_file(file_path: str, filename: str) -> Dict[str, Any]:
         
     structure = analyze_resume_structure(metrics["text"])
     
+    # Heuristic to detect candidate name from top lines
+    candidate_name = "Applicant"
+    raw_lines = [l.strip() for l in metrics["text"].splitlines() if l.strip()]
+    for line in raw_lines[:6]:
+        clean_name = re.sub(r'[^a-zA-Z\s\.\-]', '', line).strip()
+        words = clean_name.split()
+        if 2 <= len(words) <= 4 and len(clean_name) <= 35:
+            lower = clean_name.lower()
+            if not any(kw in lower for kw in [
+                "resume", "curriculum", "cv", "experience", "education", "skills", 
+                "summary", "profile", "developer", "engineer", "contact", "phone", 
+                "email", "github", "linkedin", "page", "university", "bachelor"
+            ]):
+                candidate_name = clean_name
+                break
+    
     return {
         "raw_text": metrics["text"],
         "filename": filename,
+        "candidate_name": candidate_name,
         "page_count": metrics["page_count"],
         "tables_count": metrics["tables_count"],
         "images_count": metrics["images_count"],

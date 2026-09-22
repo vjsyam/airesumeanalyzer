@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Upload, FileText, Sparkles, AlertCircle, ArrowRight, RefreshCw, 
   Layers, CheckCircle2, ChevronRight, Loader2, Briefcase, User, 
-  Code2, Terminal, ShieldAlert, Cpu, Check, FileCheck
+  Code2, Terminal, ShieldAlert, Cpu, Check, FileCheck, Download, Copy
 } from 'lucide-react';
 import Header from './components/Header';
 import AtsScoreGauge from './components/AtsScoreGauge';
@@ -30,6 +30,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState('ats'); // 'ats' | 'skills' | 'suggestions' | 'cover-letter' | 'raw'
+  const [copiedReport, setCopiedReport] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -84,10 +85,6 @@ export default function App() {
 
   const handleAnalyze = async (overrideJd = null) => {
     const targetJd = (overrideJd !== null && typeof overrideJd === 'string' ? overrideJd : jobDescription).trim();
-    if (!file && !selectedSampleId && !pastedResumeText.trim()) {
-      setError('Please upload a resume (PDF/DOCX) or select a candidate profile.');
-      return;
-    }
     if (!targetJd) {
       setError('Please enter or paste a target Job Description.');
       return;
@@ -102,12 +99,27 @@ export default function App() {
         jobDescription: targetJd,
       };
 
-      if (file) {
+      if (inputMode === 'upload') {
+        if (!file) {
+          setError('Please select or drop a PDF/DOCX resume.');
+          setLoading(false);
+          return;
+        }
         payload.file = file;
-      } else if (selectedSampleId) {
-        payload.sampleResumeId = selectedSampleId;
+      } else if (inputMode === 'paste') {
+        if (!pastedResumeText.trim()) {
+          setError('Please paste your resume text in the editor.');
+          setLoading(false);
+          return;
+        }
+        payload.rawResumeText = pastedResumeText.trim();
       } else {
-        payload.rawResumeText = pastedResumeText;
+        if (!selectedSampleId) {
+          setError('Please select a candidate profile preset.');
+          setLoading(false);
+          return;
+        }
+        payload.sampleResumeId = selectedSampleId;
       }
 
       const response = await analyzeResume(payload);
@@ -118,6 +130,83 @@ export default function App() {
       setLoading(false);
       setAnalysisStep('');
     }
+  };
+
+  const generateAuditReportMarkdown = () => {
+    if (!results) return '';
+    const candName = results.resume_meta?.candidate_name && results.resume_meta?.candidate_name !== 'Applicant'
+      ? results.resume_meta.candidate_name
+      : sampleData?.resumes?.[selectedSampleId]?.candidate_name || 'Candidate';
+    const roleTitle = sampleData?.job_descriptions?.[selectedJdKey]?.title || 'Target Role';
+    const ats = results.ats_score || {};
+    const match = results.match_analysis || {};
+    const bd = ats.breakdown || {};
+    const suggestions = results.suggestions || [];
+
+    return `# ATS Audit & Resume Optimization Report
+
+**Candidate:** ${candName}  
+**Target Position:** ${roleTitle}  
+**Overall ATS Compatibility Rating:** ${ats.overall_score || 0}% (${ats.rating_label || 'Evaluated'})  
+**Evaluation Engine:** ${results.engine || 'Gemini 2.5 Flash'}
+
+---
+
+## 1. ATS Telemetry Breakdown
+
+| Evaluation Dimension | Weight | Score | Assessment |
+| :--- | :---: | :---: | :--- |
+| **${bd.keyword_match?.label || 'Keyword Alignment'}** | ${bd.keyword_match?.weight || 55}% | ${bd.keyword_match?.score || 0}% | ${Array.isArray(bd.keyword_match?.notes) ? bd.keyword_match.notes.join('; ') : bd.keyword_match?.notes || ''} |
+| **${bd.measurable_impact?.label || 'Measurable Impact'}** | ${bd.measurable_impact?.weight || 20}% | ${bd.measurable_impact?.score || 0}% | ${Array.isArray(bd.measurable_impact?.notes) ? bd.measurable_impact.notes.join('; ') : bd.measurable_impact?.notes || ''} |
+| **${bd.section_structure?.label || 'Section Structure'}** | ${bd.section_structure?.weight || 15}% | ${bd.section_structure?.score || 0}% | ${Array.isArray(bd.section_structure?.notes) ? bd.section_structure.notes.join('; ') : bd.section_structure?.notes || ''} |
+| **${bd.formatting_compatibility?.label || 'Layout & Formatting'}** | ${bd.formatting_compatibility?.weight || 10}% | ${bd.formatting_compatibility?.score || 0}% | ${Array.isArray(bd.formatting_compatibility?.notes) ? bd.formatting_compatibility.notes.join('; ') : bd.formatting_compatibility?.notes || ''} |
+
+---
+
+## 2. Skill & Domain Keyword Telemetry
+
+### Confirmed Qualifications (${(match.matched_skills || []).length})
+${(match.matched_skills || []).map(s => `- [x] **${s}**`).join('\n')}
+
+### Missing Required Skills (${(match.missing_skills || []).length})
+${(match.missing_skills || []).map(s => `- [ ] ${s}`).join('\n')}
+
+### Critical Domain Keyword Gaps (${(match.keyword_gaps || []).length})
+${(match.keyword_gaps || []).map(g => `- ⚠️ ${g}`).join('\n')}
+
+---
+
+## 3. High-Impact Bullet Rewrites
+
+${suggestions.map((item, idx) => `### ${idx + 1}. ${item.target_location}
+- **Original:** ${item.original_bullet}
+- **Targeted Revision:** ${item.rewritten_bullet}
+- **Alignment Rationale:** ${item.rationale}
+`).join('\n')}
+
+---
+*Report generated by AI Resume Analyzer — Precision ATS & Gap Optimization Engine.*
+`;
+  };
+
+  const handleDownloadAuditReport = () => {
+    const md = generateAuditReportMarkdown();
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `ATS_Audit_Report_${(results?.resume_meta?.candidate_name || 'Resume').replace(/\s+/g, '_')}.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyAuditReport = () => {
+    const md = generateAuditReportMarkdown();
+    navigator.clipboard.writeText(md);
+    setCopiedReport(true);
+    setTimeout(() => setCopiedReport(false), 2000);
   };
 
   return (
@@ -274,9 +363,21 @@ export default function App() {
                 <Briefcase size={15} color="var(--accent-primary)" />
                 2. Target Job Description
               </span>
-              <span className="mono" style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                {jobDescription.length} characters
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span className="mono" style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  {jobDescription.trim() ? jobDescription.trim().split(/\s+/).length : 0} words • {jobDescription.length} chars
+                </span>
+                {jobDescription && (
+                  <button
+                    className="btn-ghost"
+                    style={{ padding: '0.15rem 0.45rem', fontSize: '0.7rem' }}
+                    onClick={() => setJobDescription('')}
+                    title="Clear Job Description text"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
 
             <textarea
@@ -381,6 +482,47 @@ export default function App() {
         {/* Section 2: Results Dashboard */}
         {results && !loading && (
           <section style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            {/* Audit Toolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem', padding: '0 0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="mono" style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  EVALUATING AGAINST:
+                </span>
+                <span className="mono" style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  {sampleData?.job_descriptions?.[selectedJdKey]?.title || 'Target Role'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  id="btn-copy-audit-report"
+                  className="btn-ghost"
+                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', backgroundColor: 'var(--bg-subtle)' }}
+                  onClick={handleCopyAuditReport}
+                >
+                  {copiedReport ? (
+                    <>
+                      <Check size={13} color="var(--accent-primary)" />
+                      <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>Report Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={13} />
+                      <span>Copy Audit Report (.md)</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  id="btn-download-audit-report"
+                  className="btn-ghost"
+                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', backgroundColor: 'var(--bg-subtle)' }}
+                  onClick={handleDownloadAuditReport}
+                >
+                  <Download size={13} />
+                  <span>Download Report (.md)</span>
+                </button>
+              </div>
+            </div>
+
             {/* Centered Navigation Tabs */}
             <nav className="dashboard-tabs">
               <button

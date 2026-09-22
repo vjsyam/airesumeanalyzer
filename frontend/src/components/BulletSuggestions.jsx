@@ -3,6 +3,7 @@ import { Copy, Check, CheckCheck, Sparkles, Target, ArrowRight } from 'lucide-re
 
 export default function BulletSuggestions({ suggestions }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
+  const [allCopied, setAllCopied] = useState(false);
 
   if (!suggestions || suggestions.length === 0) return null;
 
@@ -10,6 +11,13 @@ export default function BulletSuggestions({ suggestions }) {
     navigator.clipboard.writeText(text);
     setCopiedIdx(idx);
     setTimeout(() => setCopiedIdx(null), 1800);
+  };
+
+  const handleCopyAll = () => {
+    const allText = suggestions.map((s, i) => `• ${s.rewritten_bullet}`).join('\n\n');
+    navigator.clipboard.writeText(allText);
+    setAllCopied(true);
+    setTimeout(() => setAllCopied(false), 2000);
   };
 
   return (
@@ -22,7 +30,24 @@ export default function BulletSuggestions({ suggestions }) {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn-ghost"
+            style={{ padding: '0.35rem 0.8rem', fontSize: '0.76rem', borderColor: 'var(--border-hairline)', backgroundColor: 'var(--bg-subtle)' }}
+            onClick={handleCopyAll}
+          >
+            {allCopied ? (
+              <>
+                <Check size={13} color="var(--accent-primary)" />
+                <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>All Bullets Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy size={13} />
+                <span>Copy All Improved Bullets</span>
+              </>
+            )}
+          </button>
           <span className="compliance-badge">
             <CheckCheck size={12} />
             /human voice rules applied

@@ -175,10 +175,25 @@ async def analyze_resume(
             if len(resume_text) > 50000:
                 raise HTTPException(status_code=413, detail="Pasted text exceeds maximum allowable size (50k chars).")
                 
-            structure = analyze_resume_structure(resume_text)
+            # Detect candidate name from top lines of pasted text
+            candidate_name = "Applicant"
+            raw_lines = [l.strip() for l in resume_text.splitlines() if l.strip()]
+            for line in raw_lines[:6]:
+                clean_name = re.sub(r'[^a-zA-Z\s\.\-]', '', line).strip()
+                words = clean_name.split()
+                if 2 <= len(words) <= 4 and len(clean_name) <= 35:
+                    lower = clean_name.lower()
+                    if not any(kw in lower for kw in [
+                        "resume", "curriculum", "cv", "experience", "education", "skills", 
+                        "summary", "profile", "developer", "engineer", "contact", "phone", 
+                        "email", "github", "linkedin", "page", "university", "bachelor"
+                    ]):
+                        candidate_name = clean_name
+                        break
+
             resume_meta = {
                 "filename": "Pasted_Resume.txt",
-                "candidate_name": "Applicant",
+                "candidate_name": candidate_name,
                 "page_count": max(1, len(resume_text.split()) // 350),
                 "tables_count": 0,
                 "images_count": 0,
