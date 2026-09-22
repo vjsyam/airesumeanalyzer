@@ -174,35 +174,47 @@ def compute_ats_score(
 
     format_score = max(20, min(100, format_score))
 
-    # Rigorous Weighted Composite Score
-    # 0.45 * keyword + 0.25 * metrics + 0.15 * section + 0.15 * format
-    composite_score = round(
-        (0.45 * keyword_score) +
-        (0.25 * metric_score) +
+    # Rigorous Weighted Composite Score (Enterprise ATS Screening Model)
+    # 0.55 * keyword + 0.20 * metrics + 0.15 * section + 0.10 * format
+    raw_composite = (
+        (0.55 * keyword_score) +
+        (0.20 * metric_score) +
         (0.15 * section_score) +
-        (0.15 * format_score)
+        (0.10 * format_score)
     )
+
+    # Recruiter Knockout Filter Rule:
+    # Enterprise screening bots (Taleo, iCIMS, Greenhouse) automatically disqualify resumes lacking core technical keywords
+    if keyword_score < 25:
+        # Severe technical mismatch (< 25% of core skills) -> Disqualification tier
+        composite_score = min(35, round(raw_composite * 0.60))
+    elif keyword_score < 45:
+        # Substantial technical gaps (< 45% of core skills) -> Borderline screening tier
+        composite_score = min(54, round(raw_composite * 0.82))
+    else:
+        composite_score = round(raw_composite)
+
     composite_score = max(10, min(99, composite_score))
 
     # Realistic Benchmarking
-    if composite_score >= 82:
+    if composite_score >= 80:
         verdict = "Top 10% ATS Screening Tier"
         summary = "Exceptional keyword alignment and strongly quantified bullet points. High probability of passing recruiter filters."
-    elif composite_score >= 68:
+    elif composite_score >= 65:
         verdict = "Competitive Match (Moderate Keyword Gaps)"
-        summary = "Solid core credentials. Adding missing target skills and quantifying more bullet points will significantly increase callback probability."
-    elif composite_score >= 50:
+        summary = "Solid core credentials matching target role. Adding missing target skills and quantifying more bullet points will boost interview callbacks."
+    elif composite_score >= 45:
         verdict = "Borderline (Substantial Gaps Detected)"
-        summary = "Significant keyword discrepancies or lack of measurable bullet metrics. Resume risks being filtered out by automated screening."
+        summary = "Significant keyword discrepancies for this specific role. Resume risks being filtered out by automated screening filters."
     else:
         verdict = "Critical ATS Filter Risk"
-        summary = "Low keyword overlap with the target job description. Tailor your skills and experience bullets to match requirements before submitting."
+        summary = "Low technical skill overlap with this target job description. Tailor your skills and experience bullets before applying."
 
     # Build metric summary notes
     metric_pct = round(bullet_analysis['metric_rate'] * 100)
     metric_notes = [
         f"{bullet_analysis['metric_bullet_count']} of {bullet_analysis['total_bullets']} bullets ({metric_pct}%) contain quantifiable metrics (%, ms, $, scale).",
-        "Industry standard: Target 60%+ of bullets with measurable outcomes." if metric_pct < 60 else "Good quantification rate matching competitive standards.",
+        "Industry standard: Target 50%+ of bullets with measurable outcomes." if metric_pct < 50 else "Good quantification rate matching competitive standards.",
     ]
     if bullet_analysis["passive_phrase_count"] > 0:
         metric_notes.append(f"Found {bullet_analysis['passive_phrase_count']} passive phrases (e.g. 'worked on', 'helped with'). Replace with active verbs.")
@@ -214,27 +226,27 @@ def compute_ats_score(
         "breakdown": {
             "keyword_match": {
                 "score": keyword_score,
-                "weight": 45,
+                "weight": 55,
                 "label": "Target Keyword Alignment",
                 "notes": f"{keyword_score}% keyword & skill overlap with target job description."
             },
             "measurable_impact": {
                 "score": metric_score,
-                "weight": 25,
+                "weight": 20,
                 "label": "Quantifiable Metrics & Impact",
                 "notes": metric_notes
-            },
-            "formatting_compatibility": {
-                "score": format_score,
-                "weight": 15,
-                "label": "Layout & Parseability",
-                "notes": format_deductions if format_deductions else ["Clean single-column layout, standard typography, and valid contact information."]
             },
             "section_structure": {
                 "score": section_score,
                 "weight": 15,
                 "label": "Standard Section Headings",
                 "sections": section_breakdown
+            },
+            "formatting_compatibility": {
+                "score": format_score,
+                "weight": 10,
+                "label": "Layout & Parseability",
+                "notes": format_deductions if format_deductions else ["Clean single-column layout, standard typography, and valid contact information."]
             }
         }
     }

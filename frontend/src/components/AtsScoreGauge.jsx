@@ -68,11 +68,11 @@ export default function AtsScoreGauge({ atsData }) {
 
       {/* Right Column: Breakdown Telemetry */}
       <div className="submetrics-list">
-        {/* 1. Keyword & Skill Alignment */}
+        {/* 1. Target Keyword & Hard Skill Alignment */}
         {breakdown.keyword_match && (
           <div className="submetric-row">
             <div className="submetric-header">
-              <span className="submetric-label">{breakdown.keyword_match.label} (35%)</span>
+              <span className="submetric-label">{breakdown.keyword_match.label} ({breakdown.keyword_match.weight || 55}%)</span>
               <span className="submetric-value">{breakdown.keyword_match.score}%</span>
             </div>
             <div className="progress-track">
@@ -85,25 +85,25 @@ export default function AtsScoreGauge({ atsData }) {
           </div>
         )}
 
-        {/* 2. Formatting & Parseability */}
-        {breakdown.formatting_compatibility && (
+        {/* 2. Quantifiable Metrics & Impact */}
+        {breakdown.measurable_impact && (
           <div className="submetric-row">
             <div className="submetric-header">
-              <span className="submetric-label">{breakdown.formatting_compatibility.label} (25%)</span>
-              <span className="submetric-value">{breakdown.formatting_compatibility.score}%</span>
+              <span className="submetric-label">{breakdown.measurable_impact.label} ({breakdown.measurable_impact.weight || 20}%)</span>
+              <span className="submetric-value">{breakdown.measurable_impact.score}%</span>
             </div>
             <div className="progress-track">
               <div
-                className={`progress-fill ${getProgressFillClass(breakdown.formatting_compatibility.score)}`}
-                style={{ width: `${breakdown.formatting_compatibility.score}%` }}
+                className={`progress-fill ${getProgressFillClass(breakdown.measurable_impact.score)}`}
+                style={{ width: `${breakdown.measurable_impact.score}%` }}
               />
             </div>
             <div className="submetric-notes">
-              {Array.isArray(breakdown.formatting_compatibility.notes)
-                ? breakdown.formatting_compatibility.notes.map((note, i) => (
+              {Array.isArray(breakdown.measurable_impact.notes)
+                ? breakdown.measurable_impact.notes.map((note, i) => (
                     <div key={i} style={{ marginTop: '0.2rem' }}>• {note}</div>
                   ))
-                : breakdown.formatting_compatibility.notes}
+                : breakdown.measurable_impact.notes}
             </div>
           </div>
         )}
@@ -112,7 +112,7 @@ export default function AtsScoreGauge({ atsData }) {
         {breakdown.section_structure && (
           <div className="submetric-row">
             <div className="submetric-header">
-              <span className="submetric-label">{breakdown.section_structure.label} (25%)</span>
+              <span className="submetric-label">{breakdown.section_structure.label} ({breakdown.section_structure.weight || 15}%)</span>
               <span className="submetric-value">{breakdown.section_structure.score}%</span>
             </div>
             <div className="progress-track">
@@ -131,25 +131,25 @@ export default function AtsScoreGauge({ atsData }) {
           </div>
         )}
 
-        {/* 4. Contact Information */}
-        {breakdown.contact_parseability && (
+        {/* 4. Formatting & Parseability */}
+        {breakdown.formatting_compatibility && (
           <div className="submetric-row">
             <div className="submetric-header">
-              <span className="submetric-label">{breakdown.contact_parseability.label} (15%)</span>
-              <span className="submetric-value">{breakdown.contact_parseability.score}%</span>
+              <span className="submetric-label">{breakdown.formatting_compatibility.label} ({breakdown.formatting_compatibility.weight || 10}%)</span>
+              <span className="submetric-value">{breakdown.formatting_compatibility.score}%</span>
             </div>
             <div className="progress-track">
               <div
-                className={`progress-fill ${getProgressFillClass(breakdown.contact_parseability.score)}`}
-                style={{ width: `${breakdown.contact_parseability.score}%` }}
+                className={`progress-fill ${getProgressFillClass(breakdown.formatting_compatibility.score)}`}
+                style={{ width: `${breakdown.formatting_compatibility.score}%` }}
               />
             </div>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-              {(breakdown.contact_parseability.notes || []).map((n, idx) => (
-                <span key={idx} className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  {n}
-                </span>
-              ))}
+            <div className="submetric-notes">
+              {Array.isArray(breakdown.formatting_compatibility.notes)
+                ? breakdown.formatting_compatibility.notes.map((note, i) => (
+                    <div key={i} style={{ marginTop: '0.2rem' }}>• {note}</div>
+                  ))
+                : breakdown.formatting_compatibility.notes}
             </div>
           </div>
         )}

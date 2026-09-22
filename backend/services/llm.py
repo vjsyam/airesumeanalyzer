@@ -345,21 +345,45 @@ KNOWN_TECH_DICTIONARY = [
 def fallback_extract_skills(text: str) -> Dict[str, Any]:
     found_tech = []
     lower_text = text.lower()
+    
     for tech in KNOWN_TECH_DICTIONARY:
-        pattern = r'\b' + re.escape(tech.lower()) + r'\b'
-        if re.search(pattern, lower_text):
-            found_tech.append(tech)
+        t_low = tech.lower()
+        # Word boundary disambiguation for single letters or common English words
+        if t_low == "go":
+            if re.search(r'\b(?:golang|go\s+(?:developer|engineer|programming|language|backend|code))\b', lower_text):
+                found_tech.append("Go")
+        elif t_low in ["c", "c++", "c#"]:
+            if tech == "C" and re.search(r'\b(?:c\s*\/\s*c\+\+|ansi\s+c|embedded\s+c|c\s+programming|c\s+language)\b', lower_text):
+                found_tech.append("C")
+            elif tech == "C++" and re.search(r'\bc\+\+\b', lower_text):
+                found_tech.append("C++")
+            elif tech == "C#" and re.search(r'\bc#\b', lower_text):
+                found_tech.append("C#")
+        elif t_low == "r":
+            if re.search(r'\b(?:r\s+(?:programming|language|scripting|studio)|rstudio)\b', lower_text):
+                found_tech.append("R")
+        elif t_low == "rest":
+            if re.search(r'\b(?:restful|rest\s+api|rest\s+apis|restful\s+architecture)\b', lower_text):
+                found_tech.append("REST")
+        elif t_low == "java":
+            if re.search(r'\bjava\b(?!\s*script)', lower_text):
+                found_tech.append("Java")
+        else:
+            pattern = r'\b' + re.escape(t_low) + r'\b'
+            if re.search(pattern, lower_text):
+                found_tech.append(tech)
 
     tools = [t for t in found_tech if t in ["Docker", "Kubernetes", "AWS", "GCP", "Azure", "Terraform", "Git", "GitHub Actions", "Postman", "Vercel"]]
-    certs = ["Google Cloud Certified"] if "google cloud" in lower_text or "aws" in lower_text and "cert" in lower_text else []
-    methodologies = [m for m in ["Microservices", "REST", "CI/CD", "Agile", "WebSockets"] if m in found_tech or m.lower() in lower_text]
+    certs = ["Google Cloud Certified"] if "google cloud" in lower_text or ("aws" in lower_text and "cert" in lower_text) else []
+    methodologies = [m for m in ["Microservices", "REST", "CI/CD", "Agile", "WebSockets"] if m in found_tech or (m.lower() in lower_text and m not in ["REST"])]
     tech_skills = [t for t in found_tech if t not in tools and t not in methodologies]
 
+    # Return only genuine extracted skills (no fake defaults)
     return {
-        "technical_skills": tech_skills if tech_skills else ["Python", "JavaScript", "FastAPI", "SQL"],
-        "tools_and_platforms": tools if tools else ["Git", "Docker", "Postman"],
+        "technical_skills": tech_skills,
+        "tools_and_platforms": tools,
         "certifications": certs,
-        "methodologies": methodologies if methodologies else ["REST APIs", "CI/CD"],
+        "methodologies": methodologies,
         "is_llm_generated": False
     }
 
@@ -367,12 +391,26 @@ def fallback_match_jd(resume_skills: List[str], resume_text: str, jd_text: str) 
     jd_tech = []
     lower_jd = jd_text.lower()
     for tech in KNOWN_TECH_DICTIONARY:
-        pattern = r'\b' + re.escape(tech.lower()) + r'\b'
-        if re.search(pattern, lower_jd):
-            jd_tech.append(tech)
+        t_low = tech.lower()
+        if t_low == "go":
+            if re.search(r'\b(?:golang|go\s+(?:developer|engineer|programming|language|backend))\b', lower_jd):
+                jd_tech.append("Go")
+        elif t_low == "c":
+            if re.search(r'\b(?:c\s*\/\s*c\+\+|c\s+programming|c\s+language)\b', lower_jd):
+                jd_tech.append("C")
+        elif t_low == "rest":
+            if re.search(r'\b(?:restful|rest\s+api|rest\s+apis|restful\s+architecture)\b', lower_jd):
+                jd_tech.append("REST")
+        elif t_low == "java":
+            if re.search(r'\bjava\b(?!\s*script)', lower_jd):
+                jd_tech.append("Java")
+        else:
+            pattern = r'\b' + re.escape(t_low) + r'\b'
+            if re.search(pattern, lower_jd):
+                jd_tech.append(tech)
             
     if not jd_tech:
-        jd_tech = ["Python", "REST APIs", "PostgreSQL", "Git", "Docker", "CI/CD", "Unit Testing"]
+        jd_tech = ["Python", "SQL", "Git", "REST", "Docker"]
 
     lower_resume = resume_text.lower()
     resume_skills_lower = set(s.lower() for s in resume_skills)
@@ -382,23 +420,29 @@ def fallback_match_jd(resume_skills: List[str], resume_text: str, jd_text: str) 
     
     for tech in jd_tech:
         t_low = tech.lower()
+        is_matched = False
         if t_low in resume_skills_lower:
-            matched.append(tech)
-        elif t_low in ["go", "c", "r"]:
-            if re.search(r'\b(?:golang|' + re.escape(t_low) + r'\s*(?:programming|language|\+\+|#))\b', lower_resume):
-                matched.append(tech)
-            else:
-                missing.append(tech)
+            is_matched = True
+        elif t_low == "go":
+            if re.search(r'\b(?:golang|go\s+(?:developer|engineer|programming|language|backend))\b', lower_resume):
+                is_matched = True
+        elif t_low == "c":
+            if re.search(r'\b(?:c\s*\/\s*c\+\+|c\s+programming|c\s+language)\b', lower_resume):
+                is_matched = True
         elif t_low == "rest":
             if re.search(r'\b(?:restful|rest\s+api|rest\s+apis|restful\s+architecture)\b', lower_resume):
-                matched.append(tech)
-            else:
-                missing.append(tech)
+                is_matched = True
+        elif t_low == "java":
+            if re.search(r'\bjava\b(?!\s*script)', lower_resume):
+                is_matched = True
         else:
             if re.search(r'\b' + re.escape(t_low) + r'\b', lower_resume):
-                matched.append(tech)
-            else:
-                missing.append(tech)
+                is_matched = True
+                
+        if is_matched:
+            matched.append(tech)
+        else:
+            missing.append(tech)
     
     ratio = len(matched) / max(len(jd_tech), 1)
     

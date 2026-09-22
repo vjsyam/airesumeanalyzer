@@ -72,28 +72,34 @@ export default function App() {
 
   const loadJdPreset = (jdKey) => {
     setSelectedJdKey(jdKey);
-    if (sampleData?.job_descriptions?.[jdKey]) {
-      setJobDescription(sampleData.job_descriptions[jdKey].text);
+    const newJd = sampleData?.job_descriptions?.[jdKey]?.text;
+    if (newJd) {
+      setJobDescription(newJd);
+      // If analysis has already been performed, immediately recalculate for this role
+      if (results) {
+        handleAnalyze(newJd);
+      }
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (overrideJd = null) => {
+    const targetJd = (overrideJd !== null && typeof overrideJd === 'string' ? overrideJd : jobDescription).trim();
     if (!file && !selectedSampleId && !pastedResumeText.trim()) {
       setError('Please upload a resume (PDF/DOCX) or select a candidate profile.');
       return;
     }
-    if (!jobDescription.trim()) {
+    if (!targetJd) {
       setError('Please enter or paste a target Job Description.');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setAnalysisStep('Analyzing document layout, checking formatting boundaries, and parsing experience bullets...');
+    setAnalysisStep('Evaluating skills taxonomy against target role requirements and recalculating ATS telemetry...');
 
     try {
       const payload = {
-        jobDescription,
+        jobDescription: targetJd,
       };
 
       if (file) {
@@ -104,11 +110,8 @@ export default function App() {
         payload.rawResumeText = pastedResumeText;
       }
 
-      setAnalysisStep('Evaluating skills taxonomy, running ATS scoring, and generating project-anchored rewrites...');
       const response = await analyzeResume(payload);
-
       setResults(response);
-      setActiveTab('ats');
     } catch (err) {
       setError(err.message || 'An error occurred during analysis.');
     } finally {
